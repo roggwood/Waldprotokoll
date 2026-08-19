@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waldprotokoll – Verkehrssicherungspflicht</title>
+<!-- jsPDF für Browser-seitige PDF-Generierung -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+  :root {
+    --wald:   #1f3b1e;
+    --moos:   #2d5a29;
+    --fichte: #4a7c45;
+    --licht:  #c8dbc6;
+    --papier: #f5f3ee;
+    --holz:   #8b5e3c;
+    --rinde:  #5c3d22;
+    --text:   #1a1a18;
+    --grau:   #6b6b60;
+    --hell:   #e8e4db;
+    --rot:    #8b2020;
+    --mono:   'IBM Plex Mono', monospace;
+    --sans:   'IBM Plex Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--papier); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  header { background: var(--wald); color: white; border-bottom: 4px solid var(--holz); }
+  .header-inner { max-width: 980px; margin: 0 auto; padding: 24px 24px 20px; display: flex; align-items: flex-end; gap: 16px; }
+  .header-icon { font-size: 2.6rem; line-height: 1; flex-shrink: 0; }
+  .header-text h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: 0.01em; }
+  .header-text .sub { font-size: 0.72rem; color: var(--licht); font-family: var(--mono); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .header-meta { margin-left: auto; text-align: right; font-family: var(--mono); font-size: 0.7rem; color: var(--licht); line-height: 1.9; flex-shrink: 0; }
+
+  /* NAV */
+  nav { background: var(--moos); }
+  .nav-inner { max-width: 980px; margin: 0 auto; display: flex; padding: 0 24px; }
+  nav button { background: none; border: none; color: var(--licht); font-family: var(--sans); font-size: 0.84rem; font-weight: 500; padding: 11px 18px 9px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; }
+  nav button:hover { color: white; background: rgba(255,255,255,0.07); }
+  nav button.active { color: white; border-bottom-color: var(--holz); }
+
+  /* MAIN */
+  main { max-width: 980px; margin: 0 auto; padding: 28px 24px 60px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* SECTION LABEL */
+  .sl { font-family: var(--mono); font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--grau); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .sl::after { content: ''; flex: 1; height: 1px; background: var(--hell); }
+
+  /* FORM CARD */
+  .fc { background: white; border: 1px solid var(--hell); border-radius: 2px; border-left: 4px solid var(--fichte); padding: 22px 24px 20px; margin-bottom: 22px; }
+  .fg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+  .fg3 { grid-template-columns: 1fr 1fr 1fr; }
+  .fg4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .ff { display: flex; flex-direction: column; gap: 5px; }
+  .full { grid-column: 1 / -1; }
+  label { font-size: 0.77rem; font-weight: 600; color: var(--wald); letter-spacing: 0.02em; }
+  label .req { color: var(--holz); }
+  input[type=text], input[type=date], input[type=time], input[type=number], select, textarea {
+    font-family: var(--sans); font-size: 0.87rem; padding: 7px 10px;
+    border: 1px solid #ccc9be; border-radius: 2px; background: var(--papier);
+    color: var(--text); transition: border-color 0.15s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--fichte); background: white; }
+  textarea { resize: vertical; min-height: 82px; }
+
+  /* CHECKBOXEN */
+  .cg { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 7px; margin-top: 4px; }
+  .ci { display: flex; align-items: center; gap: 7px; font-size: 0.83rem; cursor: pointer; padding: 5px 9px; border: 1px solid var(--hell); border-radius: 2px; background: var(--papier); transition: background 0.1s; user-select: none; }
+  .ci:hover { background: var(--licht); }
+  .ci input[type=checkbox] { width: auto; accent-color: var(--fichte); cursor: pointer; flex-shrink: 0; }
+  .ci.checked { background: #e8f2e7; border-color: var(--fichte); }
+
+  /* FOTO UPLOAD */
+  .foto-dropzone {
+    border: 2px dashed #b8c4b6; border-radius: 4px; background: #f8faf8;
+    padding: 24px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s; position: relative;
+  }
+  .foto-dropzone:hover, .foto-dropzone.dragover { border-color: var(--fichte); background: #eef5ed; }
+  .foto-dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .foto-dropzone .dz-icon { font-size: 2rem; display: block; margin-bottom: 6px; }
+  .foto-dropzone p { font-size: 0.82rem; color: var(--grau); line-height: 1.5; }
+  .foto-dropzone .dz-hint { font-size: 0.74rem; color: #aaa; margin-top: 4px; }
+
+  .foto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
+  .foto-thumb { position: relative; border-radius: 3px; overflow: hidden; border: 1px solid var(--hell); aspect-ratio: 4/3; background: #eee; }
+  .foto-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .foto-thumb .ft-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0); display: flex; align-items: flex-start; justify-content: flex-end; transition: background 0.15s; padding: 4px; }
+  .foto-thumb:hover .ft-overlay { background: rgba(0,0,0,0.18); }
+  .foto-thumb .ft-del { background: rgba(139,32,32,0.85); color: white; border: none; border-radius: 2px; font-size: 0.7rem; padding: 3px 6px; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+  .foto-thumb:hover .ft-del { opacity: 1; }
+  .foto-thumb .ft-name { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.45); color: white; font-size: 0.65rem; padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .foto-thumb textarea.ft-caption {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.65); color: white; font-size: 0.7rem;
+    border: none; resize: none; padding: 4px 6px; min-height: 36px;
+    font-family: var(--sans); line-height: 1.3;
+  }
+  .foto-thumb textarea.ft-caption::placeholder { color: rgba(255,255,255,0.5); }
+  .foto-thumb textarea.ft-caption:focus { outline: none; background: rgba(0,0,0,0.8); }
+
+  /* HINWEIS */
+  .hinweis { background: #fdf8f0; border: 1px solid #d4b483; border-left: 4px solid var(--holz); border-radius: 2px; padding: 11px 13px; font-size: 0.79rem; color: var(--rinde); line-height: 1.6; margin-bottom: 18px; }
+  .hinweis strong { color: var(--holz); }
+
+  /* BUTTONS */
+  .br { display: flex; gap: 10px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+  .btn { font-family: var(--sans); font-size: 0.84rem; font-weight: 600; padding: 9px 20px; border: none; border-radius: 2px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.02em; white-space: nowrap; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn-primary { background: var(--wald); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--moos); }
+  .btn-secondary { background: white; color: var(--wald); border: 1.5px solid var(--wald); }
+  .btn-secondary:hover { background: var(--licht); }
+  .btn-danger { background: white; color: var(--rot); border: 1.5px solid var(--rot); font-size: 0.77rem; padding: 6px 13px; }
+  .btn-danger:hover { background: #fce8e8; }
+  .btn-export { background: var(--holz); color: white; }
+  .btn-export:hover { background: var(--rinde); }
+  .btn-pdf { background: #1a3a6e; color: white; font-size: 0.8rem; padding: 7px 14px; }
+  .btn-pdf:hover { background: #0f2548; }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 2px; font-size: 0.71rem; font-family: var(--mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-routine   { background: #e8f2e7; color: var(--moos); }
+  .badge-akut      { background: #fff0e0; color: #8b4800; }
+  .badge-gefahr    { background: #fce8e8; color: var(--rot); }
+  .badge-kontrolle { background: #e8eef8; color: #1a3a6e; }
+
+  /* TABELLE */
+  .log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .log-count { font-family: var(--mono); font-size: 0.77rem; color: var(--grau); }
+  .filter-row { display: flex; gap: 9px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-row input, .filter-row select { font-size: 0.79rem; padding: 6px 9px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; background: white; border: 1px solid var(--hell); }
+  thead th { background: var(--wald); color: white; padding: 9px 11px; text-align: left; font-size: 0.73rem; font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--hell); transition: background 0.1s; }
+  tbody tr:hover { background: #f5fbf4; }
+  tbody td { padding: 9px 11px; vertical-align: middle; line-height: 1.4; }
+  tbody td.mono { font-family: var(--mono); font-size: 0.77rem; color: var(--grau); }
+  .foto-count { font-family: var(--mono); font-size: 0.72rem; color: var(--fichte); }
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--grau); }
+  .empty-state .icon { font-size: 2.8rem; margin-bottom: 10px; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: white; border: 1px solid var(--hell); border-top: 3px solid var(--fichte); padding: 14px; border-radius: 2px; }
+  .stat-card .num { font-family: var(--mono); font-size: 1.9rem; font-weight: 600; color: var(--wald); line-height: 1; }
+  .stat-card .lbl { font-size: 0.76rem; color: var(--grau); margin-top: 3px; }
+
+  .export-card { background: white; border: 1px solid var(--hell); padding: 18px 22px; border-radius: 2px; margin-bottom: 13px; display: flex; align-items: center; gap: 18px; }
+  .export-icon { font-size: 1.9rem; flex-shrink: 0; }
+  .export-info h4 { font-size: 0.88rem; margin-bottom: 3px; color: var(--wald); }
+  .export-info p { font-size: 0.79rem; color: var(--grau); line-height: 1.5; }
+  .export-card .btn { margin-left: auto; flex-shrink: 0; }
+
+  /* LEGAL */
+  .legal-card { background: white; border: 1px solid var(--hell); border-left: 4px solid var(--moos); padding: 18px 22px; border-radius: 2px; margin-bottom: 14px; }
+  .legal-card h4 { font-size: 0.87rem; color: var(--wald); margin-bottom: 7px; font-weight: 600; }
+  .legal-card p, .legal-card li { font-size: 0.81rem; color: #444; line-height: 1.65; }
+  .legal-card ul { padding-left: 16px; }
+  .legal-card li { margin-bottom: 3px; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-top: 4px solid var(--holz); border-radius: 2px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; padding: 26px; }
+  .modal h3 { font-size: 0.98rem; margin-bottom: 14px; color: var(--wald); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; font-size: 0.84rem; margin-bottom: 16px; }
+  .di label { font-size: 0.71rem; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.07em; color: var(--grau); display: block; margin-bottom: 2px; }
+  .di .val { color: var(--text); line-height: 1.5; }
+  .di.full { grid-column: 1 / -1; }
+  .modal-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .modal-foto { border-radius: 3px; overflow: hidden; border: 1px solid var(--hell); }
+  .modal-foto img { width: 100%; display: block; }
+  .modal-foto .cap { font-size: 0.72rem; color: var(--grau); padding: 4px 6px; background: #f9f9f7; line-height: 1.3; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--wald); color: white; padding: 10px 22px; border-radius: 3px; font-size: 0.85rem; font-weight: 500; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* PROGRESS */
+  .progress-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 300; align-items: center; justify-content: center; }
+  .progress-overlay.open { display: flex; }
+  .progress-box { background: white; padding: 28px 36px; border-radius: 4px; text-align: center; min-width: 260px; }
+  .progress-box h4 { font-size: 0.95rem; color: var(--wald); margin-bottom: 14px; }
+  .progress-bar-wrap { background: var(--hell); border-radius: 2px; height: 8px; overflow: hidden; }
+  .progress-bar { background: var(--fichte); height: 8px; border-radius: 2px; width: 0%; transition: width 0.2s; }
+  .progress-box p { font-size: 0.78rem; color: var(--grau); margin-top: 10px; }
+
+  @media (max-width: 640px) {
+    .fg { grid-template-columns: 1fr; }
+    .fg3, .fg4 { grid-template-columns: 1fr 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .header-meta { display: none; }
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-icon">🌲</div>
+    <div class="header-text">
+      <h1>Waldarbeits-Protokoll</h1>
+      <div class="sub">Nachweis der Verkehrssicherungspflicht · § 823 BGB</div>
+    </div>
+    <div class="header-meta">
+      Einträge: <strong id="hdrCount">0</strong><br>
+      Letzter Eintrag: <span id="hdrLast">—</span><br>
+      Stand: <span id="hdrDate"></span>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <button class="active" data-panel="erfassen" onclick="showPanel(this)">📋 Eintrag erfassen</button>
+    <button data-panel="protokoll" onclick="showPanel(this)">📁 Protokoll</button>
+    <button data-panel="export" onclick="showPanel(this)">📤 Export</button>
+    <button data-panel="recht" onclick="showPanel(this)">⚖️ Rechtliches</button>
+  </div>
+</nav>
+
+<main>
+  <!-- ═══ ERFASSEN ═══ -->
+  <div class="panel active" id="panel-erfassen">
+    <div class="hinweis">
+      <strong>Hinweis:</strong> Mit <span style="color:var(--holz)">*</span> markierte Felder sind Pflichtfelder. Jeder gespeicherte Eintrag erhält automatisch einen Zeitstempel und kann direkt als PDF mit eingebetteten Fotos exportiert werden.
+    </div>
+
+    <div class="sl">Grunddaten</div>
+    <div class="fc">
+      <div class="fg fg3" style="margin-bottom:14px">
+        <div class="ff">
+          <label>Datum <span class="req">*</span></label>
+          <input type="date" id="f_datum">
+        </div>
+        <div class="ff">
+          <label>Beginn</label>
+          <input type="time" id="f_beginn">
+        </div>
+        <div class="ff">
+          <label>Ende</label>
+          <input type="time" id="f_ende">
+        </div>
+      </div>
+      <div class="fg fg3">
+        <div class="ff">
+          <label>Waldstück / Abteilung <span class="req">*</span></label>
+          <input type="text" id="f_stueck" placeholder="z.B. Abt. 3, Nordseite">
+        </div>
+        <div class="ff">
+          <label>Flurstück / Kataster</label>
+          <input type="text" id="f_flurstuck" placeholder="z.B. Fl. 42, Gmt. Musterort">
+        </div>
+        <div class="ff">
+          <label>Witterung</label>
+          <select id="f_wetter">
+            <option value="">— bitte wählen —</option>
+            <option>trocken, sonnig</option>
+            <option>trocken, bewölkt</option>
+            <option>Regen</option>
+            <option>Sturm / Starkwind</option>
+            <option>Schnee / Frost</option>
+            <option>nach Sturm</option>
+            <option>nach Schneebruch</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="sl">Arbeitsart & Priorität</div>
+    <div class="fc">
+      <div class="ff" style="margin-bottom:14px">
+        <label>Arbeitsart <span class="req">*</span> (Mehrfachauswahl)</label>
+        <div class="cg" id="arbeitsart-checks">
+          <label class="ci"><input type="checkbox" value="Baumkontrolle / Sichtkontrolle"> Baumkontrolle</label>
+          <label class="ci"><input type="checkbox" value="Totholzentnahme"> Totholzentnahme</label>
+          <label class="ci"><input type="checkbox" value="Fällung bruchgefährdeter Bäume"> Fällung Gefahrbaum</label>
+          <label class="ci"><input type="checkbox" value="Kronenpflege / Astschnitt"> Kronenpflege</label>
+          <label class="ci"><input type="checkbox" value="Wegerandpflege"> Wegerandpflege</label>
+          <label class="ci"><input type="checkbox" value="Sperrung / Absperrung"> Sperrung</label>
+          <label class="ci"><input type="checkbox" value="Beschilderung"> Beschilderung</label>
+          <label class="ci"><input type="checkbox" value="Rückschnitt Unterholz"> Rückschnitt Unterholz</label>
+          <label class="ci"><input type="checkbox" value="Fällgut beräumen"> Fällgut beräumen</label>
+          <label class="ci"><input type="checkbox" value="Schadholzaufarbeitung Sturm"> Schadholz Sturm</label>
+          <label class="ci"><input type="checkbox" value="Schädlingsbekämpfung"> Schädlingsbekämpfung</label>
+          <label class="ci"><input type="checkbox" value="Sonstiges"> Sonstiges</label>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="ff">
+          <label>Priorität / Anlass <span class="req">*</span></label>
+          <select id="f_prioritaet">
+            <option value="">— bitte wählen —</option>
+            <option value="routine">Routinekontrolle (turnusmäßig)</option>
+            <option value="akut">Akutmaßnahme (konkreter Befund)</option>
+            <option value="gefahr">Sofortmaßnahme (unmittelbare Gefahr)</option>
+            <option value="kontrolle">Nachkontrolle</option>
+          </select>
+        </div>
+        <div class="ff">
+          <label>Durchführende Person(en) <span class="req">*</span></label>
+          <input type="text" id="f_person" placeholder="Name, ggf. Qualifikation">
+        </div>
+      </div>
+    </div>
+
+    <div class="sl">Befund & Maßnahmen</div>
+    <div class="fc">
+      <div class="fg" style="margin-bottom:14px">
+        <div class="ff">
+          <label>Festgestellter Befund / Schäden</label>
+          <textarea id="f_befund" placeholder="z.B. 3 Fichten mit Borkenkäferbefall, 1 Birke mit Stammfäule ca. 15° Schrägstand…"></textarea>
+        </div>
+        <div class="ff">
+          <label>Durchgeführte Maßnahmen <span class="req">*</span></label>
+          <textarea id="f_massnahmen" placeholder="z.B. Fällung der Gefahrbäume, Fällgut 5m abseits des Weges gelagert…"></textarea>
+        </div>
+      </div>
+      <div class="fg fg3">
+        <div class="ff">
+          <label>Betroffene Bäume (Anzahl / Art)</label>
+          <input type="text" id="f_baeume" placeholder="z.B. 2 Fichten, 1 Eiche">
+        </div>
+        <div class="ff">
+          <label>Wegebezug (Weg / Straße)</label>
+          <input type="text" id="f_weg" placeholder="z.B. Forstweg Nord">
+        </div>
+        <div class="ff">
+          <label>Weiterer Handlungsbedarf</label>
+          <input type="text" id="f_folgemassnahme" placeholder="z.B. Nachkontrolle in 4 Wochen">
+        </div>
+      </div>
+      <div class="ff" style="margin-top:14px">
+        <label>Zusätzliche Bemerkungen</label>
+        <textarea id="f_bemerkung" placeholder="Besondere Vorkommnisse, Zeugen, externe Beauftragte…" style="min-height:56px"></textarea>
+      </div>
+    </div>
+
+    <div class="sl">Fotodokumentation</div>
+    <div class="fc">
+      <div class="foto-dropzone" id="dropzone">
+        <input type="file" id="fotoInput" accept="image/*" multiple onchange="handleFotoUpload(event)">
+        <span class="dz-icon">📷</span>
+        <p><strong>Fotos hier ablegen</strong> oder klicken zum Auswählen</p>
+        <p class="dz-hint">JPG, PNG, WebP · Mehrfachauswahl möglich · Fotos werden mit dem Eintrag gespeichert</p>
+      </div>
+      <div class="foto-grid" id="fotoGrid"></div>
+    </div>
+
+    <div class="br">
+      <button class="btn btn-primary" onclick="speichern()">✓ Eintrag speichern</button>
+      <button class="btn btn-secondary" onclick="formReset()">Formular leeren</button>
+    </div>
+  </div>
+
+  <!-- ═══ PROTOKOLL ═══ -->
+  <div class="panel" id="panel-protokoll">
+    <div class="log-header">
+      <div>
+        <div class="sl" style="margin-bottom:3px">Protokollbuch</div>
+        <span class="log-count" id="logCount">0 Einträge</span>
+      </div>
+      <button class="btn btn-danger" onclick="alleLoeschen()">🗑 Alle löschen</button>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="filterText" placeholder="🔍 Suchen…" oninput="renderTabelle()" style="min-width:170px">
+      <select id="filterPrio" onchange="renderTabelle()">
+        <option value="">Alle Prioritäten</option>
+        <option value="routine">Routine</option>
+        <option value="akut">Akut</option>
+        <option value="gefahr">Sofortmaßnahme</option>
+        <option value="kontrolle">Nachkontrolle</option>
+      </select>
+      <input type="date" id="filterVon" onchange="renderTabelle()">
+      <input type="date" id="filterBis" onchange="renderTabelle()">
+    </div>
+    <div id="tabelleContainer"></div>
+  </div>
+
+  <!-- ═══ EXPORT ═══ -->
+  <div class="panel" id="panel-export">
+    <div class="sl">Übersicht</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="num" id="sGesamt">0</div><div class="lbl">Einträge gesamt</div></div>
+      <div class="stat-card"><div class="num" id="sJahr">0</div><div class="lbl">Dieses Jahr</div></div>
+      <div class="stat-card"><div class="num" id="sGefahr">0</div><div class="lbl">Sofortmaßnahmen</div></div>
+      <div class="stat-card"><div class="num" id="sLetzte">—</div><div class="lbl">Letzte Kontrolle</div></div>
+    </div>
+
+    <div class="sl">Exportformate</div>
+
+    <div class="export-card">
+      <div class="export-icon">📄</div>
+      <div class="export-info">
+        <h4>Sammel-PDF – alle Einträge</h4>
+        <p>Erstellt ein vollständiges Protokollbuch als PDF mit allen Einträgen, Befunden und Fotos. Geeignet als Nachweis gegenüber Behörden oder Versicherungen.</p>
+      </div>
+      <button class="btn btn-export" onclick="exportAllePDF()">Alle als PDF</button>
+    </div>
+
+    <div class="export-card">
+      <div class="export-icon">📊</div>
+      <div class="export-info">
+        <h4>CSV-Export (Excel / Tabellenkalkulation)</h4>
+        <p>Alle Einträge als kommaseparierte Datei, ohne Fotos. Nützlich für eigene Auswertungen, Behörden oder Weitergabe per E-Mail.</p>
+      </div>
+      <button class="btn btn-export" onclick="exportCSV()">CSV herunterladen</button>
+    </div>
+
+    <div class="export-card">
+      <div class="export-icon">💾</div>
+      <div class="export-info">
+        <h4>JSON-Backup (inkl. Fotos)</h4>
+        <p>Vollständige Datensicherung aller Einträge und Fotos. Empfohlen: regelmäßig sichern! Das Backup kann jederzeit wiederhergestellt werden.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
+        <button class="btn btn-export" onclick="exportJSON()">Backup speichern</button>
+        <label class="btn btn-secondary" style="cursor:pointer">Backup laden<input type="file" accept=".json" onchange="importJSON(event)" style="display:none"></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RECHTLICHES ═══ -->
+  <div class="panel" id="panel-recht">
+    <div class="sl">Rechtliche Grundlagen</div>
+    <div class="legal-card">
+      <h4>§ 823 BGB – Verkehrssicherungspflicht</h4>
+      <p>Waldbesitzer sind nach ständiger Rechtsprechung verpflichtet, ihren Wald so zu unterhalten, dass von ihm keine Gefahren für Dritte ausgehen. Diese Pflicht umfasst insbesondere:</p>
+      <ul>
+        <li>Regelmäßige Kontrolle auf bruchgefährdete Bäume (Totholz, Schädlingsbefall, Stammfäule)</li>
+        <li>Besondere Sorgfalt entlang von Wegen, Straßen und Erholungsanlagen</li>
+        <li>Sofortmaßnahmen bei erkannten Gefahren (Fällung, Sperrung, Warnschilder)</li>
+        <li>Erhöhte Kontrollfrequenz nach Sturmereignissen</li>
+      </ul>
+    </div>
+    <div class="legal-card">
+      <h4>Dokumentationspflicht und Beweislast</h4>
+      <ul>
+        <li><strong>Lückenlose Protokollierung</strong> aller Kontroll- und Pflegemaßnahmen mit Datum und Person</li>
+        <li><strong>Fotonachweis</strong> bei Befunden und nach Maßnahmen (direkt im Eintrag speichern)</li>
+        <li><strong>Turnusmäßige Kontrollen</strong> mindestens 2× jährlich, nach Sturm unverzüglich</li>
+        <li><strong>Qualifikationsnachweis</strong> bei beauftragten Fachleuten dokumentieren</li>
+        <li>Protokolle <strong>mindestens 10 Jahre aufbewahren</strong> (§ 195, 199 BGB)</li>
+      </ul>
+    </div>
+    <div class="legal-card">
+      <h4>Empfohlene Kontrollintervalle (Rechtsprechung)</h4>
+      <ul>
+        <li><strong>Wegerand (befahrene Forstwege):</strong> mindestens 2× jährlich, nach Sturm sofort</li>
+        <li><strong>Öffentliche Straßen / Wege mit Publikumsverkehr:</strong> mindestens 4× jährlich</li>
+        <li><strong>Erholungswald / frequentierte Bereiche:</strong> je nach Nutzung bis monatlich</li>
+        <li><strong>Allgemeiner Waldbestand:</strong> 1–2× jährlich</li>
+      </ul>
+    </div>
+    <div class="hinweis">
+      <strong>Hinweis:</strong> Dieses Tool dient der Dokumentationsunterstützung und ersetzt keine Rechtsberatung. Für konkrete rechtliche Fragen wenden Sie sich an einen Forstrechtsanwalt oder Ihren Waldbesitzerverband.
+    </div>
+  </div>
+</main>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalClick(event)">
+  <div class="modal">
+    <h3 id="modalTitle">Protokolleintrag</h3>
+    <div class="detail-grid" id="modalBody"></div>
+    <div id="modalFotos" class="modal-fotos"></div>
+    <div class="modal-footer">
+      <button class="btn btn-pdf" id="modalPdfBtn">📄 Als PDF speichern</button>
+      <button class="btn btn-danger" id="modalDeleteBtn">🗑 Löschen</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-box">
+    <h4 id="progressTitle">PDF wird erstellt…</h4>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <p id="progressMsg">Bitte warten</p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+//  KONSTANTEN & STATE
+// ════════════════════════════════════════
+const STORAGE_KEY = 'waldprotokoll_v2';
+let pendingFotos = []; // [{dataUrl, name, caption}] während Eingabe
+
+const PRIO_LABEL = {
+  routine:   ['Routinekontrolle', 'badge-routine'],
+  akut:      ['Akutmaßnahme',     'badge-akut'],
+  gefahr:    ['⚠ Sofortmaßnahme', 'badge-gefahr'],
+  kontrolle: ['Nachkontrolle',    'badge-kontrolle'],
+};
+const PRIO_TEXT = {
+  routine: 'Routinekontrolle (turnusmäßig)',
+  akut:    'Akutmaßnahme (konkreter Befund)',
+  gefahr:  'SOFORTMASSNAHME (unmittelbare Gefahr)',
+  kontrolle: 'Nachkontrolle',
+};
+
+// ════════════════════════════════════════
+//  DATEN
+// ════════════════════════════════════════
+function laden() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch { return []; }
+}
+function speichernDaten(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('f_datum').value = heute();
+  document.getElementById('hdrDate').textContent = new Date().toLocaleDateString('de-DE');
+  updateHeader();
+  renderTabelle();
+  initCheckboxes();
+  initDropzone();
+});
+
+function heute() { return new Date().toISOString().slice(0, 10); }
+
+function initCheckboxes() {
+  document.querySelectorAll('.ci').forEach(label => {
+    label.querySelector('input[type=checkbox]').addEventListener('change', function() {
+      label.classList.toggle('checked', this.checked);
+    });
+  });
+}
+
+function initDropzone() {
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    handleFiles([...e.dataTransfer.files]);
+  });
+}
+
+// ════════════════════════════════════════
+//  NAV
+// ════════════════════════════════════════
+function showPanel(btn) {
+  const id = btn.dataset.panel;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'protokoll') renderTabelle();
+  if (id === 'export')    updateStats();
+}
+
+// ════════════════════════════════════════
+//  FOTOS
+// ════════════════════════════════════════
+function handleFotoUpload(e) { handleFiles([...e.target.files]); e.target.value = ''; }
+
+function handleFiles(files) {
+  const imageFiles = files.filter(f => f.type.startsWith('image/'));
+  if (!imageFiles.length) return;
+  imageFiles.forEach(f => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      pendingFotos.push({ dataUrl: ev.target.result, name: f.name, caption: '' });
+      renderFotoGrid();
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function renderFotoGrid() {
+  const grid = document.getElementById('fotoGrid');
+  if (!pendingFotos.length) { grid.innerHTML = ''; return; }
+  grid.innerHTML = pendingFotos.map((f, i) => `
+    <div class="foto-thumb">
+      <img src="${f.dataUrl}" alt="${escHtml(f.name)}">
+      <div class="ft-overlay">
+        <button class="ft-del" onclick="fotoLoeschen(${i})" title="Foto entfernen">✕</button>
+      </div>
+      <textarea class="ft-caption" placeholder="Bildunterschrift…"
+        oninput="pendingFotos[${i}].caption=this.value">${escHtml(f.caption)}</textarea>
+    </div>`).join('');
+}
+
+function fotoLoeschen(i) { pendingFotos.splice(i, 1); renderFotoGrid(); }
+
+// ════════════════════════════════════════
+//  SPEICHERN
+// ════════════════════════════════════════
+function speichern() {
+  const datum      = document.getElementById('f_datum').value;
+  const prioritaet = document.getElementById('f_prioritaet').value;
+  const massnahmen = document.getElementById('f_massnahmen').value.trim();
+  const person     = document.getElementById('f_person').value.trim();
+  const stueck     = document.getElementById('f_stueck').value.trim();
+  const checked    = [...document.querySelectorAll('.ci input:checked')].map(c => c.value);
+
+  if (!datum || !prioritaet || !massnahmen || !person || !stueck) {
+    toast('⚠ Bitte alle Pflichtfelder ausfüllen.', true); return;
+  }
+  if (!checked.length) { toast('⚠ Mindestens eine Arbeitsart wählen.', true); return; }
+
+  const eintrag = {
+    id:            Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    erfasstAm:     new Date().toISOString(),
+    datum,
+    beginn:        document.getElementById('f_beginn').value,
+    ende:          document.getElementById('f_ende').value,
+    stueck,
+    flurstuck:     document.getElementById('f_flurstuck').value.trim(),
+    wetter:        document.getElementById('f_wetter').value,
+    arbeitsart:    checked,
+    prioritaet,
+    person,
+    befund:        document.getElementById('f_befund').value.trim(),
+    massnahmen,
+    baeume:        document.getElementById('f_baeume').value.trim(),
+    weg:           document.getElementById('f_weg').value.trim(),
+    folgemassnahme:document.getElementById('f_folgemassnahme').value.trim(),
+    bemerkung:     document.getElementById('f_bemerkung').value.trim(),
+    fotos:         pendingFotos.map(f => ({ dataUrl: f.dataUrl, name: f.name, caption: f.caption })),
+  };
+
+  const daten = laden();
+  daten.unshift(eintrag);
+  speichernDaten(daten);
+  pendingFotos = [];
+  formReset();
+  updateHeader();
+  toast('✓ Eintrag gespeichert – ' + new Date(eintrag.erfasstAm).toLocaleString('de-DE'));
+}
+
+function formReset() {
+  ['f_stueck','f_flurstuck','f_beginn','f_ende','f_befund','f_massnahmen',
+   'f_baeume','f_weg','f_folgemassnahme','f_bemerkung'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f_datum').value = heute();
+  document.getElementById('f_prioritaet').value = '';
+  document.getElementById('f_wetter').value = '';
+  document.querySelectorAll('.ci input').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.ci').forEach(l => l.classList.remove('checked'));
+  pendingFotos = [];
+  renderFotoGrid();
+}
+
+function updateHeader() {
+  const d = laden();
+  document.getElementById('hdrCount').textContent = d.length;
+  document.getElementById('hdrLast').textContent  = d.length
+    ? new Date(d[0].erfasstAm).toLocaleDateString('de-DE') : '—';
+  document.getElementById('logCount') && (document.getElementById('logCount').textContent = d.length + ' Einträge');
+}
+
+// ════════════════════════════════════════
+//  TABELLE
+// ════════════════════════════════════════
+function renderTabelle() {
+  const container = document.getElementById('tabelleContainer');
+  let daten = laden();
+  const txt  = (document.getElementById('filterText')?.value || '').toLowerCase();
+  const prio = document.getElementById('filterPrio')?.value || '';
+  const von  = document.getElementById('filterVon')?.value  || '';
+  const bis  = document.getElementById('filterBis')?.value  || '';
+
+  if (txt)  daten = daten.filter(e => [e.stueck,e.massnahmen,e.befund,e.person,(e.arbeitsart||[]).join(' ')].join(' ').toLowerCase().includes(txt));
+  if (prio) daten = daten.filter(e => e.prioritaet === prio);
+  if (von)  daten = daten.filter(e => e.datum >= von);
+  if (bis)  daten = daten.filter(e => e.datum <= bis);
+
+  const cnt = document.getElementById('logCount');
+  if (cnt) cnt.textContent = daten.length + ' Einträge';
+
+  if (!daten.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Keine Einträge gefunden.</p></div>';
+    return;
+  }
+
+  const rows = daten.map(e => {
+    const [lbl, cls] = PRIO_LABEL[e.prioritaet] || ['—', ''];
+    const datum = fmtDatum(e.datum);
+    const arten = (e.arbeitsart||[]).slice(0,2).join(', ') + ((e.arbeitsart||[]).length > 2 ? ' …' : '');
+    const fotos = (e.fotos||[]).length;
+    return `<tr onclick="zeigeDetail('${e.id}')" style="cursor:pointer">
+      <td class="mono">${datum}</td>
+      <td><strong>${escHtml(e.stueck)}</strong>${e.weg ? '<br><span style="font-size:0.75rem;color:var(--grau)">'+escHtml(e.weg)+'</span>' : ''}</td>
+      <td>${escHtml(arten)}</td>
+      <td><span class="badge ${cls}">${lbl}</span></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(e.massnahmen)}</td>
+      <td>${escHtml(e.person)}</td>
+      <td class="foto-count">${fotos > 0 ? '📷 '+fotos : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `<table>
+    <thead><tr>
+      <th>Datum</th><th>Waldstück</th><th>Arbeitsart</th>
+      <th>Priorität</th><th>Maßnahmen</th><th>Person</th><th>Fotos</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ════════════════════════════════════════
+//  DETAIL MODAL
+// ════════════════════════════════════════
+let modalCurrentId = null;
+
+function zeigeDetail(id) {
+  const e = laden().find(x => x.id === id);
+  if (!e) return;
+  modalCurrentId = id;
+  const [lbl, cls] = PRIO_LABEL[e.prioritaet] || ['—', ''];
+
+  document.getElementById('modalTitle').textContent = `Protokolleintrag — ${fmtDatum(e.datum)} — ${e.stueck}`;
+
+  const felder = [
+    ['Datum', fmtDatum(e.datum)], ['Waldstück', e.stueck],
+    ['Beginn', e.beginn || '—'], ['Ende', e.ende || '—'],
+    ['Flurstück', e.flurstuck || '—'], ['Witterung', e.wetter || '—'],
+    ['Arbeitsart', (e.arbeitsart||[]).join(', '), true],
+    ['Priorität', `<span class="badge ${cls}">${lbl}</span>`, true],
+    ['Durchführende Person', e.person, true],
+    ['Befund', e.befund || '—', true],
+    ['Maßnahmen', e.massnahmen, true],
+    ['Betroffene Bäume', e.baeume || '—'],
+    ['Wegebezug', e.weg || '—'],
+    ['Folgemaßnahme', e.folgemassnahme || '—', true],
+    ['Bemerkungen', e.bemerkung || '—', true],
+    ['Erfasst am', new Date(e.erfasstAm).toLocaleString('de-DE')],
+    ['Datensatz-ID', e.id],
+  ];
+
+  document.getElementById('modalBody').innerHTML = felder.map(([l, v, full]) =>
+    `<div class="di${full ? ' full' : ''}"><label>${l}</label><div class="val">${v}</div></div>`
+  ).join('');
+
+  const fotosEl = document.getElementById('modalFotos');
+  if ((e.fotos||[]).length) {
+    fotosEl.style.display = 'grid';
+    fotosEl.innerHTML = e.fotos.map(f =>
+      `<div class="modal-foto">
+        <img src="${f.dataUrl}" alt="${escHtml(f.name)}">
+        ${f.caption ? `<div class="cap">${escHtml(f.caption)}</div>` : ''}
+      </div>`
+    ).join('');
+  } else {
+    fotosEl.style.display = 'none';
+    fotosEl.innerHTML = '';
+  }
+
+  document.getElementById('modalPdfBtn').onclick = () => { closeModal(); exportEinzelPDF(id); };
+  document.getElementById('modalDeleteBtn').onclick = () => {
+    if (confirm('Eintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+      speichernDaten(laden().filter(x => x.id !== id));
+      closeModal(); renderTabelle(); updateHeader();
+      toast('Eintrag gelöscht.');
+    }
+  };
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+// ════════════════════════════════════════
+//  STATS
+// ════════════════════════════════════════
+function updateStats() {
+  const d = laden();
+  const jahr = new Date().getFullYear().toString();
+  document.getElementById('sGesamt').textContent = d.length;
+  document.getElementById('sJahr').textContent   = d.filter(e => e.datum?.startsWith(jahr)).length;
+  document.getElementById('sGefahr').textContent = d.filter(e => e.prioritaet === 'gefahr').length;
+  const kontrollen = d.filter(e => (e.arbeitsart||[]).some(a => a.includes('Baumkontrolle')));
+  document.getElementById('sLetzte').textContent = kontrollen.length
+    ? fmtDatum(kontrollen[0].datum) : '—';
+}
+
+// ════════════════════════════════════════
+//  PDF – EINZELNER EINTRAG
+// ════════════════════════════════════════
+async function exportEinzelPDF(id) {
+  const e = laden().find(x => x.id === id);
+  if (!e) return;
+  showProgress('PDF wird erstellt…', 0, 'Initialisierung…');
+  await sleep(50);
+  try {
+    const doc = await buildPDF([e], (p, msg) => showProgress('PDF wird erstellt…', p, msg));
+    doc.save(`Waldprotokoll_${e.datum}_${e.stueck.replace(/[^a-zA-Z0-9äöüÄÖÜ_-]/g,'_')}.pdf`);
+    hideProgress();
+    toast('✓ PDF gespeichert.');
+  } catch(err) {
+    hideProgress();
+    alert('Fehler beim PDF-Export: ' + err.message);
+  }
+}
+
+// ════════════════════════════════════════
+//  PDF – ALLE EINTRÄGE
+// ════════════════════════════════════════
+async function exportAllePDF() {
+  const daten = laden();
+  if (!daten.length) { toast('Keine Einträge vorhanden.', true); return; }
+  showProgress('Sammel-PDF wird erstellt…', 0, `0 / ${daten.length} Einträge`);
+  await sleep(50);
+  try {
+    const doc = await buildPDF(daten, (p, msg) => showProgress('Sammel-PDF wird erstellt…', p, msg));
+    doc.save(`Waldprotokoll_Gesamt_${heute()}.pdf`);
+    hideProgress();
+    toast('✓ Sammel-PDF gespeichert.');
+  } catch(err) {
+    hideProgress();
+    alert('Fehler beim PDF-Export: ' + err.message);
+  }
+}
+
+// ════════════════════════════════════════
+//  PDF BUILD (jsPDF)
+// ════════════════════════════════════════
+async function buildPDF(eintraege, onProgress) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const W = 210, H = 297;
+  const ML = 18, MR = 18, MT = 20;
+  const CW = W - ML - MR;
+
+  const WALD  = [31, 59, 30];
+  const HOLZ  = [139, 94, 60];
+  const GRAU  = [100, 100, 90];
+  const HELL  = [230, 225, 215];
+  const ROT   = [139, 32, 32];
+  const WHITE = [255, 255, 255];
+  const LIGHT_GREEN = [232, 242, 231];
+
+  let page = 1;
+  function addPage() {
+    doc.addPage();
+    page++;
+    pageFooter();
+  }
+  function pageFooter() {
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAU);
+    doc.text(`Waldarbeits-Protokoll · Nachweis Verkehrssicherungspflicht § 823 BGB · Seite ${page}`, ML, H - 10);
+    doc.text(`Exportiert: ${new Date().toLocaleString('de-DE')}`, W - MR, H - 10, { align: 'right' });
+    doc.setDrawColor(...HELL);
+    doc.setLineWidth(0.3);
+    doc.line(ML, H - 13, W - MR, H - 13);
+  }
+
+  // ── DECKBLATT ──
+  doc.setFillColor(...WALD);
+  doc.rect(0, 0, W, 60, 'F');
+  doc.setFillColor(...HOLZ);
+  doc.rect(0, 58, W, 3, 'F');
+
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Waldarbeits-Protokoll', ML, 28);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Nachweis der Verkehrssicherungspflicht gemäß § 823 BGB', ML, 36);
+
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAU);
+  doc.text(`Erstellt am: ${new Date().toLocaleString('de-DE')}`, ML, 75);
+  doc.text(`Anzahl Einträge: ${eintraege.length}`, ML, 82);
+
+  const zeitraum = eintraege.length > 1
+    ? `${fmtDatum(eintraege[eintraege.length-1].datum)} – ${fmtDatum(eintraege[0].datum)}`
+    : fmtDatum(eintraege[0].datum);
+  doc.text(`Zeitraum: ${zeitraum}`, ML, 89);
+
+  doc.setFontSize(7.5);
+  doc.text('Dieses Dokument dient als rechtssicherer Nachweis durchgeführter Waldpflegemaßnahmen.', ML, 100);
+  doc.text('Aufbewahrungsfrist: mindestens 10 Jahre (§ 195, 199 BGB).', ML, 105);
+
+  pageFooter();
+
+  // ── EINTRÄGE ──
+  for (let idx = 0; idx < eintraege.length; idx++) {
+    const e = eintraege[idx];
+    onProgress(Math.round(10 + (idx / eintraege.length) * 85), `Eintrag ${idx+1} / ${eintraege.length}`);
+    await sleep(0);
+
+    addPage();
+    let y = MT;
+
+    // Eintrag-Header
+    doc.setFillColor(...WALD);
+    doc.roundedRect(ML, y, CW, 12, 1, 1, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`#${eintraege.length - idx}  ·  ${fmtDatum(e.datum)}  ·  ${e.stueck}`, ML + 4, y + 8);
+
+    // Prioritäts-Badge rechts
+    const pBadge = PRIO_TEXT[e.prioritaet] || e.prioritaet;
+    const badgeColor = e.prioritaet === 'gefahr' ? ROT : e.prioritaet === 'akut' ? [139, 72, 0] : WALD;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    const bw = doc.getTextWidth(pBadge) + 6;
+    doc.setFillColor(...badgeColor);
+    doc.roundedRect(W - MR - bw, y + 3, bw, 6, 1, 1, 'F');
+    doc.text(pBadge, W - MR - bw/2, y + 7.2, { align: 'center' });
+
+    y += 17;
+
+    // Felder-Tabelle
+    const felder = [
+      ['Datum der Maßnahme', fmtDatum(e.datum), 'Zeitraum', `${e.beginn||'—'} – ${e.ende||'—'}`],
+      ['Waldstück / Abteilung', e.stueck, 'Flurstück', e.flurstuck || '—'],
+      ['Wegebezug', e.weg || '—', 'Witterung', e.wetter || '—'],
+      ['Durchführende Person', e.person, 'Erfasst am', new Date(e.erfasstAm).toLocaleString('de-DE')],
+    ];
+
+    doc.setFontSize(8);
+    const colW = CW / 2;
+    for (const row of felder) {
+      // Hintergrund
+      doc.setFillColor(248, 247, 244);
+      doc.rect(ML, y, CW, 8, 'F');
+      doc.setDrawColor(...HELL);
+      doc.setLineWidth(0.2);
+      doc.rect(ML, y, CW, 8, 'S');
+
+      for (let c = 0; c < 2; c++) {
+        const x = ML + c * colW;
+        doc.setTextColor(...GRAU);
+        doc.setFont('helvetica', 'normal');
+        doc.text(row[c*2], x + 2, y + 3.5);
+        doc.setTextColor(30, 30, 25);
+        doc.setFont('helvetica', 'bold');
+        const valStr = String(row[c*2+1] || '—');
+        doc.text(valStr, x + 2, y + 7, { maxWidth: colW - 4 });
+      }
+      y += 8.5;
+    }
+
+    y += 3;
+
+    // Arbeitsart
+    doc.setFillColor(...LIGHT_GREEN);
+    doc.rect(ML, y, CW, 7, 'F');
+    doc.setTextColor(...GRAU);
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('ARBEITSART', ML + 2, y + 2.8);
+    doc.setTextColor(20, 50, 20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text((e.arbeitsart||[]).join('  ·  '), ML + 2, y + 5.8, { maxWidth: CW - 4 });
+    y += 10;
+
+    // Inhaltsblöcke
+    const bloecke = [
+      ['FESTGESTELLTER BEFUND / SCHÄDEN', e.befund || '(kein Befund vermerkt)'],
+      ['DURCHGEFÜHRTE MASSNAHMEN', e.massnahmen],
+      e.baeume    ? ['BETROFFENE BÄUME', e.baeume] : null,
+      e.folgemassnahme ? ['WEITERER HANDLUNGSBEDARF', e.folgemassnahme] : null,
+      e.bemerkung ? ['BEMERKUNGEN', e.bemerkung] : null,
+    ].filter(Boolean);
+
+    for (const [titel, inhalt] of bloecke) {
+      // Seitenumbruch prüfen
+      if (y > H - 40) { addPage(); y = MT; }
+
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'bold');
+      doc.text(titel, ML, y + 4);
+
+      doc.setDrawColor(...HELL);
+      doc.setLineWidth(0.2);
+      doc.line(ML, y + 5.5, W - MR, y + 5.5);
+
+      doc.setFontSize(9);
+      doc.setTextColor(25, 25, 20);
+      doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(inhalt, CW);
+      const bh = lines.length * 5 + 8;
+
+      // Seitenumbruch für Block
+      if (y + bh > H - 35) { addPage(); y = MT; }
+
+      doc.text(lines, ML, y + 10);
+      y += bh + 2;
+    }
+
+    // ── FOTOS ──
+    if ((e.fotos||[]).length > 0) {
+      if (y > H - 50) { addPage(); y = MT; }
+
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'bold');
+      doc.text('FOTODOKUMENTATION', ML, y + 4);
+      doc.setDrawColor(...HELL);
+      doc.setLineWidth(0.2);
+      doc.line(ML, y + 5.5, W - MR, y + 5.5);
+      y += 9;
+
+      const FOTO_W = (CW - 5) / 2;
+      const FOTO_H = FOTO_W * 0.75; // 4:3
+
+      for (let fi = 0; fi < e.fotos.length; fi++) {
+        const f = e.fotos[fi];
+        const col = fi % 2;
+        if (col === 0 && fi > 0) y += FOTO_H + (f.caption ? 10 : 5);
+        if (y + FOTO_H > H - 35) { addPage(); y = MT; }
+
+        const fx = ML + col * (FOTO_W + 5);
+        try {
+          const fmt = f.dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
+          doc.addImage(f.dataUrl, fmt, fx, y, FOTO_W, FOTO_H);
+          doc.setDrawColor(...HELL);
+          doc.setLineWidth(0.2);
+          doc.rect(fx, y, FOTO_W, FOTO_H, 'S');
+        } catch { /* Bild-Fehler überspringen */ }
+
+        if (f.caption) {
+          doc.setFontSize(7.5);
+          doc.setTextColor(...GRAU);
+          doc.setFont('helvetica', 'italic');
+          doc.text(f.caption, fx, y + FOTO_H + 4, { maxWidth: FOTO_W });
+        }
+        doc.setFontSize(7);
+        doc.setTextColor(180, 180, 170);
+        doc.setFont('helvetica', 'normal');
+        doc.text(f.name, fx, y + FOTO_H + (f.caption ? 8 : 4), { maxWidth: FOTO_W });
+      }
+
+      // Letzten Row abschließen
+      const lastRow = Math.floor((e.fotos.length - 1) / 2);
+      y += FOTO_H + 10;
+    }
+
+    // Trennlinie
+    doc.setDrawColor(...HOLZ);
+    doc.setLineWidth(0.4);
+    doc.line(ML, Math.min(y + 4, H - 20), W - MR, Math.min(y + 4, H - 20));
+  }
+
+  onProgress(100, 'Fertig.');
+  await sleep(50);
+  return doc;
+}
+
+// ════════════════════════════════════════
+//  CSV EXPORT
+// ════════════════════════════════════════
+function exportCSV() {
+  const daten = laden();
+  if (!daten.length) { toast('Keine Einträge vorhanden.', true); return; }
+  const header = ['ID','Datum','Waldstück','Flurstück','Beginn','Ende','Witterung',
+    'Arbeitsart','Priorität','Person','Befund','Maßnahmen','Bäume','Weg',
+    'Folgemaßnahme','Bemerkung','Fotos (Anzahl)','Erfasst am'];
+  const rows = daten.map(e => [
+    e.id, e.datum, e.stueck, e.flurstuck, e.beginn, e.ende, e.wetter,
+    (e.arbeitsart||[]).join(' | '), e.prioritaet, e.person, e.befund,
+    e.massnahmen, e.baeume, e.weg, e.folgemassnahme, e.bemerkung,
+    (e.fotos||[]).length, e.erfasstAm
+  ].map(v => '"' + String(v||'').replace(/"/g,'""') + '"'));
+  const csv = [header, ...rows].map(r => r.join(';')).join('\n');
+  downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), 'waldprotokoll_' + heute() + '.csv');
+  toast('✓ CSV heruntergeladen.');
+}
+
+// ════════════════════════════════════════
+//  JSON BACKUP
+// ════════════════════════════════════════
+function exportJSON() {
+  const daten = laden();
+  downloadBlob(new Blob([JSON.stringify({ version:2, exportiert: new Date().toISOString(), eintraege: daten }, null, 2)],
+    { type: 'application/json' }), 'waldprotokoll_backup_' + heute() + '.json');
+  toast('✓ Backup gespeichert.');
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj = JSON.parse(e.target.result);
+      const eintraege = obj.eintraege || obj;
+      if (!Array.isArray(eintraege)) throw new Error();
+      if (!confirm(`${eintraege.length} Einträge laden? Vorhandene Daten werden ersetzt.`)) return;
+      speichernDaten(eintraege);
+      renderTabelle(); updateHeader();
+      toast('✓ Backup erfolgreich geladen.');
+    } catch { toast('Fehler: Ungültige Backup-Datei.', true); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function alleLoeschen() {
+  if (confirm('ALLE Einträge unwiderruflich löschen?\nBitte vorher Backup erstellen!')) {
+    speichernDaten([]);
+    renderTabelle(); updateHeader();
+    toast('Alle Einträge gelöscht.');
+  }
+}
+
+// ════════════════════════════════════════
+//  HILFSFUNKTIONEN
+// ════════════════════════════════════════
+function fmtDatum(d) {
+  if (!d) return '—';
+  return new Date(d + 'T12:00:00').toLocaleDateString('de-DE');
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function toast(msg, err = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = err ? '#8b2020' : 'var(--wald)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+function showProgress(title, pct, msg) {
+  document.getElementById('progressTitle').textContent = title;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressMsg').textContent = msg;
+  document.getElementById('progressOverlay').classList.add('open');
+}
+function hideProgress() {
+  document.getElementById('progressOverlay').classList.remove('open');
+}
+</script>
+</body>
+</html>
